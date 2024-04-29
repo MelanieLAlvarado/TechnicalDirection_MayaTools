@@ -43,10 +43,31 @@ class MayaToUE:
 
         # -f means the file name, s means export selected, ea means export animation. 
         mc.FBXExport('-f', skeletalMeshExportPath, '-s', True, '-ea', False)
+        if not self.animations:
+            return
+        mc.FBXExportBakeComplexAnimation('-v', True)
+        os.makedirs(self.GetAnimFolderPath(), exist_ok=True)
+        for anim in self.animations:
+            if not anim.shouldExport:
+                continue
 
+            animExportPath = self.GetSavePathForAnimClip(anim)
+            startFrame = anim.frameMin
+            endFrame = anim.frameMax
+
+            mc.FBXExportBakeComplexStart('-v', startFrame)
+            mc.FBXExportBakeComplexEnd('-v', endFrame)
+            mc.FBXExportBakeComplexStep('-v', 1)
+
+            mc.playbackOptions(e=True, min = startFrame, max = endFrame)
+            mc.FBXExport('-f', animExportPath, '-s', True, '-ea', True)
+
+    def GetAnimFolderPath(self):
+        path = os.path.join(self.saveDir, self.GetAnimFolderName())
+        return os.path.normpath(path)
 
     def GetSavePathForAnimClip(self, animClip: AnimClip):
-        path = os.path.join(self.saveDir, self.GetAnimFolderName(), self.fileName + animClip.subfix + ".fbx")
+        path = os.path.join(self.GetAnimFolderPath(), self.fileName + animClip.subfix + ".fbx")
         return os.path.normpath(path)
 
     def GetAnimFolderName(self):

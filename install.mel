@@ -1,0 +1,32 @@
+global proc FileLocator(){};  //this is a dummy function
+string $fileLocatorInfo = `whatIs FileLocator`;
+
+string $installerPath = `substring $fileLocatorInfo 25 999`;
+
+string $pluginDir = `dirname($installerPath)`;
+
+string $pluginSrcDir = $pluginDir + "/src/";
+string $pluginAssetDir = $pluginDir + "/assets/";
+
+print($pluginSrcDir);
+
+global proc AddShelfBtnForTool(string $srcFileName)
+{
+    global string $pluginSrcDir;
+    global string $pluginAssetDir;
+    string $srcFilePath = $pluginSrcDir + $srcFileName + ".py";
+    string $iconPath = $pluginAssetDir + $srcFileName + ".png";
+    //get current active shelf
+    string $currentShelf = `tabLayout -q -selectTab "ShelfLayout"`;
+    //ser the parent for the next ui elements to be in the current shelf
+    setParent $currentShelf;
+
+    string $command = "exec(open(\"" + $srcFilePath+"\").read())";
+    shelfButton -c $command -stp "python" -image $iconPath;
+}
+
+AddShelfBtnForTool("CreateController");
+AddShelfBtnForTool("ProxyBuilder");
+AddShelfBtnForTool("GhostPoser");
+AddShelfBtnForTool("MayaToUE");
+AddShelfBtnForTool("MultiJntController");

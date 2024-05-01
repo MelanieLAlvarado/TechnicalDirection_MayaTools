@@ -4,6 +4,9 @@ from PySide2.QtGui import QIntValidator, QRegExpValidator
 import maya.cmds as mc
 from PySide2.QtWidgets import QCheckBox, QFileDialog, QLineEdit, QSizePolicy, QWidget, QPushButton, QListWidget, QAbstractItemView, QLabel, QHBoxLayout, QVBoxLayout, QMessageBox
 
+import MayaDev
+import remote_execution
+
 class AnimClip:
     def __init__(self):
         self.subfix = ""
@@ -43,24 +46,47 @@ class MayaToUE:
 
         # -f means the file name, s means export selected, ea means export animation. 
         mc.FBXExport('-f', skeletalMeshExportPath, '-s', True, '-ea', False)
-        if not self.animations:
-            return
-        mc.FBXExportBakeComplexAnimation('-v', True)
-        os.makedirs(self.GetAnimFolderPath(), exist_ok=True)
-        for anim in self.animations:
-            if not anim.shouldExport:
-                continue
+        if self.animations:
+            mc.FBXExportBakeComplexAnimation('-v', True)
+            os.makedirs(self.GetAnimFolderPath(), exist_ok=True)
+            for anim in self.animations:
+                if not anim.shouldExport:
+                    continue
 
-            animExportPath = self.GetSavePathForAnimClip(anim)
-            startFrame = anim.frameMin
-            endFrame = anim.frameMax
+                animExportPath = self.GetSavePathForAnimClip(anim)
+                startFrame = anim.frameMin
+                endFrame = anim.frameMax
 
-            mc.FBXExportBakeComplexStart('-v', startFrame)
-            mc.FBXExportBakeComplexEnd('-v', endFrame)
-            mc.FBXExportBakeComplexStep('-v', 1)
+                mc.FBXExportBakeComplexStart('-v', startFrame)
+                mc.FBXExportBakeComplexEnd('-v', endFrame)
+                mc.FBXExportBakeComplexStep('-v', 1)
 
-            mc.playbackOptions(e=True, min = startFrame, max = endFrame)
-            mc.FBXExport('-f', animExportPath, '-s', True, '-ea', True)
+                mc.playbackOptions(e=True, min = startFrame, max = endFrame)
+                mc.FBXExport('-f', animExportPath, '-s', True, '-ea', True)
+
+        self.SendToUnreal()
+
+    def SendToUnreal(self):
+        utilityPath = os.path.join(MayaDev.srcDir, "UnrealUtilities.py")
+        utilityPath = os.path.normpath(utilityPath)
+
+        meshPath = self.GetSkeletalMeshSavePath().replace("\\", "/")
+        animDir = self.GetAnimFolderPath().replace("\\", "/")
+
+        commands = []
+        with open(utilityPath, 'r') as utility:
+            commands = utility.readlines()
+
+        commands.append(f"ImportMeshAndAnimation(\'{meshPath}\, '\{animDir}\')")
+
+        command = "".join(commands)
+
+        print(command)
+        remoteExc = remote_execution.RemoteExecution()
+        remoteExc.start()
+        remoteExc.open_command_connection(remoteExc.remote_nodes)
+        remoteExc.run_command(command)
+        remoteExc.stop()
 
     def GetAnimFolderPath(self):
         path = os.path.join(self.saveDir, self.GetAnimFolderName())
